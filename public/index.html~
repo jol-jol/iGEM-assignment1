@@ -1,0 +1,122 @@
+<!-- public/index.html -->
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<base href="/">
+
+	<title>the Central Dogma of Molecular Biology</title>
+
+    <!-- JS -->
+    <script src="libs/angular/angular.min.js"></script>
+    <script src="libs/angular-route/angular-route.min.js"></script>
+
+</head>
+<body ng-app="mainApp" ng-controller="mainController">
+	<table width="100%">
+		<tr> <p align="center">the Central Dogma of Molecular Biology </tr>
+		<tr>
+			<td align="center">DNA</td>
+			<td></td>
+			<td align="center">RNA</td>
+			<td></td>
+			<td align="center">amino acids</td>
+		</tr>
+		<tr>
+			<td width="30%" height="300"> <textarea style="width:100%; height:100%; background-color:#F5A9A9;" ng-model="DNAText"></textarea> </td>
+			<td width="5%" align="center">
+				<button ng-click="submit(DNA, RNA)">⇨</button><br/>
+				<button ng-click="submit(RNA, DNA)">⇦</button>
+			</td>
+			<td width="30%"> <textarea style="width:100%; height:100%; background-color:#9FF781;" ng-model="RNAText"></textarea> </td>
+			<td width="5%" align="center">
+				<button ng-click="submit(RNA, protein)">⇨</button><br/>
+				<button ng-click="submit(protein, RNA)">⇦</button>
+			</td>
+			<td width="30%"> <textarea style="width:100%; height:100%; background-color:#5882FA;" ng-model="proteinText"></textarea> </td>
+		</tr>
+		<tr>
+			<td align="center">
+				<button ng-click="submit(DNA, protein)">amino acids ⇨</button></td>
+			<td></td>
+			<td></td>
+			<td></td>
+			<td align="center">
+				<button ng-click="submit(protein, DNA)">⇦ DNA</button>
+			</td>
+		</tr>
+	</table>
+	<br><br><br><br>
+	<button ng-click="requestHistory()">
+		Request search history from the server
+	</button>
+	<br>
+	<select multiple style="width:100%" ng-hide="history.length == 0" 
+			ng-option="item.brief for item in history track by item.date"
+			ng-model="selectedHistory">
+		<option ng-repeat="item in history" 
+				ng-dblclick="presentSelectedHistory()">
+			{{item.brief}}
+		</option>
+	</select>
+	Note: Double click on the item to show detailed query, such as the sequence.
+</body>
+<script>
+var app = angular.module('mainApp', []);
+app.controller("mainController", function($scope, $http){
+	$scope.DNA = 0;
+	$scope.RNA = 1;
+	$scope.protein = 2;
+	$scope.history = [];
+	$scope.historyBrief = [];
+	$scope.submit = function(a, b) {
+		var contentText = undefined;
+		switch(a) {
+			case $scope.DNA: contentText = $scope.DNAText; break;
+			case $scope.RNA: contentText = $scope.RNAText; break;
+			case $scope.protein: contentText = $scope.proteinText;
+		}
+		if (contentText == "" || contentText == undefined)
+			return;
+		$http.post('/request-conversion',
+			{from: a, to: b, content: contentText}).
+			success(function(data, status, headers, config) {
+				returnedText = data;
+			switch(b) {
+				case $scope.DNA: $scope.DNAText = returnedText; break;
+				case $scope.RNA: $scope.RNAText = returnedText; break;
+				case $scope.protein: $scope.proteinText = returnedText;
+				}
+			}).
+			error(function(data, status, headers, config) {
+				alert("ooops... sorry, something was wrong\n\n" +
+					"the server told us:\n" + data);
+		});
+	}
+	$scope.requestHistory = function(){
+		$http.get('/request-search-history').
+			success(function(data) {
+				$scope.history = data.history;
+				for (i = 0; i < data.history.length; i ++) {
+					temp = data.history[i];
+					$scope.history[i].brief = 
+						temp.date + '\tfrom\t' + temp.from + '\tto\t' + temp.to;
+				}
+		});
+	};
+	$scope.presentSelectedHistory = function() {
+		tempDate = $scope.selectedHistory[0].slice(4, 27);
+		index = undefined;
+		for (i = 0; i < $scope.history.length; i ++) {
+			if ($scope.history[i].brief.startsWith(tempDate)) {
+				index = i;
+				break;
+			}
+		}
+		temp = $scope.history[index];
+		alert('Query detail:\n\nTime: ' + temp.date + '\nFrom: ' + temp.from
+			+ '\n' + temp.query + '\nTo: ' + temp.to + '\n' + temp.result);
+	};
+});
+</script>	
+</html>
